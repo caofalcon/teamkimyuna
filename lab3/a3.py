@@ -154,7 +154,7 @@ def k_means(K,data,LEARNINGRATE,epochs,valid_start):
 
 # Part 2.1.2 ################################################################
 
-def pdf_loggauss(X, mu, var):
+def log_pdf(X, mu, var):
 
 	assert X.get_shape()[1] == mu.get_shape()[1]
 	assert mu.get_shape()[0] == var.get_shape()[1]
@@ -168,7 +168,7 @@ def pdf_loggauss(X, mu, var):
 # Part 2.1.3 ################################################################
 
 def log_ZgivenX(X,mu,var,pi):
-	log_pi_gauss = tf.log(pi) + pdf_loggauss(X, mu, var)
+	log_pi_gauss = tf.log(pi) + log_pdf(X, mu, var)
 	sum_log_pi_gauss = tf.reshape(reduce_logsumexp(log_pi_gauss,1),[-1,1])
 	return log_pi_gauss - sum_log_pi_gauss
 
@@ -178,7 +178,7 @@ def log_ZgivenX(X,mu,var,pi):
 
 def negLL(X, mu, var, pi_var):
 
-	log_pi_gauss = tf.log(pi_var) + pdf_loggauss(X, mu, var)
+	log_pi_gauss = tf.log(pi_var) + log_pdf(X, mu, var)
 	sum_log_pi_gauss = tf.reshape(reduce_logsumexp(log_pi_gauss,1),[-1,1])
 
 	tot_sum = tf.reduce_sum(sum_log_pi_gauss,0)
@@ -203,7 +203,7 @@ def MoG(K, data, LEARNINGRATE, epochs, valid_start):
 
 	adam_op = tf.train.AdamOptimizer(LEARNINGRATE, beta1=0.9, beta2=0.99, epsilon=1e-5).minimize(L)
 
-	log_pi_gauss = tf.log(pi_var) + pdf_loggauss(X, mu, var) 
+	log_pi_gauss = tf.log(pi_var) + log_pdf(X, mu, var) 
 	assign = tf.argmax(log_pi_gauss,1)
 
 	init = tf.global_variables_initializer()
