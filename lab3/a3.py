@@ -400,7 +400,7 @@ tinymnist = np.load ("tinymnist.npz")
 #	testData, testTarget = data ["x_test"], data ["y_test"]
 
 # def factorAnalysis (K, data, LEARNINGRATE, epochs):
-loss_array, valid_loss, W = factorAnalysis(K, tinymnist, LEARNINGRATE, epochs)
+loss_array, valid_loss, W = factorAnalysis(K, tinymnist, LEARNINGRATE, 800)
 # print W # W is 4 x 64
 W = np.reshape(W, (K, 8, 8))
 # print W
