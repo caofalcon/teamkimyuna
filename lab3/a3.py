@@ -11,7 +11,6 @@ from collections import Counter
 
 data = np.load('data2D.npy')
 
-
 def getdist(X,Y):
 
 	# distance of X^2 + Y^2 - 2XY	
@@ -223,6 +222,53 @@ def MoG(K, data, LEARNINGRATE, epochs, valid_start):
 
 	return loss_array, valid_loss, clus_assign, mu_, var_, pi_var_
 
+def negFALL(X, mu, psi, W):
+	Psi = tf.diag(psi)
+	Psi_inv = tf.diag(1.0/psi)
+	Sigma = Psi + tf.matmul(W, W, True, False)
+	half_log_det = tf.reduce_sum(tf.log(tf.diag_part(tf.cholesky(Sigma))))
+
+	diff = X-mu
+	inv = tf.matrix_inverse(Sigma)
+	inv_times_diff = tf.matmul(inv, diff, False, True)
+	half_exponent = 0.5 * tf.reduce_sum(tf.matmul(diff, inv_times_diff))
+	return half_log_det + half_exponent
+
+def factorAnalysis (K, data, LEARNINGRATE, epochs):
+	train_data = data['x']
+	train_target = data['y']
+	valid_data = data['x_valid']
+	valid_target = data['y_valid']
+
+	B = train_data.shape[0]
+	D = train_data.shape[1]
+
+	X = tf.placeholder("float32",shape=[None,D])
+	mu = tf.Variable(tf.random_normal([D],stddev=0.25))
+	psi = tf.exp(tf.Variable(tf.random_normal([D],mean=0,stddev=0.25)))
+	W = tf.exp(tf.Variable(tf.random_normal([K, D],mean=0,stddev=0.25)))
+
+	L = negFALL(X, mu, psi, W)
+
+	adam_op = tf.train.AdamOptimizer(LEARNINGRATE, beta1=0.9, beta2=0.99, epsilon=1e-5).minimize(L)
+
+	init = tf.global_variables_initializer()
+
+	loss_array = np.zeros(epochs)
+
+	with tf.Session() as sess:
+		sess.run(init)
+
+		for epoch in range(epochs):
+			loss, _ = sess.run([L,adam_op],feed_dict={X:train_data})
+			loss_array[epoch] = loss
+
+		W_ = sess.run(W)
+		valid_loss = sess.run(L,feed_dict={X:valid_data})
+		print "Valid Loss: ", valid_loss
+	
+	return loss_array, valid_loss, W_
+
 
 K = 3
 epochs = 600
@@ -322,26 +368,48 @@ LEARNINGRATE = 0.005
 #############################################################################
 
 # Part 2.2.4 ################################################################
-
-data100 = np.load('data100D.npy')
-
-k_eta = 0.01
-epochs = 600
-mog_eta = 0.005
-
-valid_start = 2*len(data)/3
-
-for k in range(1,11):
-
-	k_trainloss, _, k_validloss = k_means(k, data100, k_eta, epochs, valid_start)
- 	mog_trainloss, mog_validloss, _, _, _, _ = MoG(k, data100, mog_eta, epochs, valid_start)
-
-	print k
- 	
- 	print 'K_means Training Loss: ', k_trainloss[-1]
- 	print 'MoG Training Loss: ', mog_trainloss[-1]
-
- 	print 'K_means Validation Loss: ', k_validloss
- 	print 'MoG Validation Loss: ', mog_validloss[0]
-
+# 
+# data100 = np.load('data100D.npy')
+# 
+# k_eta = 0.01
+# epochs = 600
+# mog_eta = 0.005
+# 
+# valid_start = 2*len(data)/3
+# 
+# for k in range(1,11):
+# 
+# 	k_trainloss, _, k_validloss = k_means(k, data100, k_eta, epochs, valid_start)
+#  	mog_trainloss, mog_validloss, _, _, _, _ = MoG(k, data100, mog_eta, epochs, valid_start)
+# 
+# 	print k
+#  	
+#  	print 'K_means Training Loss: ', k_trainloss[-1]
+#  	print 'MoG Training Loss: ', mog_trainloss[-1]
+# 
+#  	print 'K_means Validation Loss: ', k_validloss
+#  	print 'MoG Validation Loss: ', mog_validloss[0]
+# 
 #############################################################################
+
+K = 4
+
+tinymnist = np.load ("tinymnist.npz")
+# 	trainData, trainTarget = data ["x"], data["y"]
+#	validData, validTarget = data ["x_valid"], data ["y_valid"]
+#	testData, testTarget = data ["x_test"], data ["y_test"]
+
+# def factorAnalysis (K, data, LEARNINGRATE, epochs):
+loss_array, valid_loss, W = factorAnalysis(K, tinymnist, LEARNINGRATE, epochs)
+# print W # W is 4 x 64
+W = np.reshape(W, (K, 8, 8))
+# print W
+
+for i in range(K):
+	plt.figure(i)
+	plt.imshow(W[i])
+	plt.title('Visualization of Row ' + str(i))
+	plt.xlabel('')
+	plt.ylabel('')
+	plt.show()
+
