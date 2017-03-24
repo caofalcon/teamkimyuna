@@ -354,13 +354,13 @@ def negFALL(X, mu, psi, W, N):
 	Psi_inv = tf.diag(1.0/psi)
 	Sigma = Psi + tf.matmul(W, W, True, False)
 	# print X.get_shape()[0]
-	log_det = N*2.0*tf.reduce_sum(tf.log(tf.diag_part(tf.cholesky(Sigma))))
+	log_det = -N*2.0*tf.reduce_sum(tf.log(tf.diag_part(tf.cholesky(Sigma))))
 
 	diff = X-mu
 	inv = tf.matrix_inverse(Sigma)
 	inv_times_diff = tf.matmul(inv, diff, False, True)
 	A = tf.matmul(diff, inv_times_diff)
-	exponent = tf.reduce_sum(A)
+	exponent = -tf.reduce_sum(A)
 	return log_det + exponent
 
 def factorAnalysis (K, data, LEARNINGRATE, epochs):
@@ -377,7 +377,7 @@ def factorAnalysis (K, data, LEARNINGRATE, epochs):
 	psi = tf.exp(tf.Variable(tf.random_normal([D],mean=0,stddev=0.25)))
 	W = tf.exp(tf.Variable(tf.random_normal([K, D],mean=0,stddev=0.25)))
 
-	L = negFALL(X, mu, psi, W, B)
+	L = -negFALL(X, mu, psi, W, B)
 
 	adam_op = tf.train.AdamOptimizer(LEARNINGRATE, beta1=0.9, beta2=0.99, epsilon=1e-5).minimize(L)
 
@@ -399,17 +399,48 @@ def factorAnalysis (K, data, LEARNINGRATE, epochs):
 	
 	return loss_array, valid_loss, W_
 
+# 
+# K = 4
+# 
+# tinymnist = np.load ("tinymnist.npz")
+# # 	trainData, trainTarget = data ["x"], data["y"]
+# #	validData, validTarget = data ["x_valid"], data ["y_valid"]
+# #	testData, testTarget = data ["x_test"], data ["y_test"]
+# 
+# # def factorAnalysis (K, data, LEARNINGRATE, epochs):
+# loss_array, valid_loss, W = factorAnalysis(K, tinymnist, LEARNINGRATE, 1200)
+# # print W # W is 4 x 64
+# W = np.reshape(W, (K, 8, 8))
+# # print W
+# 
+# for i in range(K):
+# 	plt.figure(i)
+# 	plt.imshow(W[i])
+# 	plt.title('Visualization of Row ' + str(i))
+# 	plt.xlabel('')
+# 	plt.ylabel('')
+# 	plt.colorbar()
+# 	plt.show()
+
+
+#############################################################################
+#
+# Part 3.1.3 ################################################################
+#
+# 
+
 def factorAnalysis2 (K, data, LEARNINGRATE, epochs):
 
 	B = data.shape[0]
 	D = data.shape[1]
+	print B
 
 	X = tf.placeholder("float32",shape=[None,D])
 	mu = tf.Variable(tf.random_normal([D],stddev=0.25))
 	psi = tf.exp(tf.Variable(tf.random_normal([D],mean=0,stddev=0.25)))
 	W = tf.exp(tf.Variable(tf.random_normal([K, D],mean=0,stddev=0.25)))
 
-	L = negFALL(X, mu, psi, W, B)
+	L = -negFALL(X, mu, psi, W, B)
 
 	adam_op = tf.train.AdamOptimizer(LEARNINGRATE, beta1=0.9, beta2=0.99, epsilon=1e-5).minimize(L)
 
@@ -430,34 +461,9 @@ def factorAnalysis2 (K, data, LEARNINGRATE, epochs):
 	
 	return loss_array, valid_loss, W_
 
-
-K = 4
-
-tinymnist = np.load ("tinymnist.npz")
-# 	trainData, trainTarget = data ["x"], data["y"]
-#	validData, validTarget = data ["x_valid"], data ["y_valid"]
-#	testData, testTarget = data ["x_test"], data ["y_test"]
-
-# def factorAnalysis (K, data, LEARNINGRATE, epochs):
-loss_array, valid_loss, W = factorAnalysis(K, tinymnist, LEARNINGRATE, 1500)
-# print W # W is 4 x 64
-W = np.reshape(W, (K, 8, 8))
-# print W
-
-for i in range(K):
-	plt.figure(i)
-	plt.imshow(W[i])
-	plt.title('Visualization of Row ' + str(i))
-	plt.xlabel('')
-	plt.ylabel('')
-	plt.show()
-
-
-#############################################################################
-#
-# Part 3.1.3 ################################################################
-#
-# 
+def PCA ( K, data ):
+	cov = np.cov(data)
+	return np.linalg.eig(cov)
 
 K = 1
 
@@ -475,7 +481,19 @@ x[2] = 10*s[2]
 #	return loss_array, valid_loss, W_
 # 
 
-loss_array, valid_loss, W = factorAnalysis2 (K, x.T, LEARNINGRATE, 1000)
+w, v = PCA(K, x)
+# print w, v
+# print v[np.argmax(w)]
+
+plt.figure()
+plt.imshow(w.reshape((1,3)))
+plt.title('Visualization of PCA')
+plt.xlabel('')
+plt.ylabel('')
+plt.colorbar()
+plt.show()
+
+loss_array, valid_loss, W = factorAnalysis2 (K, x.T, LEARNINGRATE, 1200)
 
 # print W
 
@@ -484,4 +502,5 @@ plt.imshow(W)
 plt.title('Visualization of FA')
 plt.xlabel('')
 plt.ylabel('')
+plt.colorbar()
 plt.show()
