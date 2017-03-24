@@ -222,54 +222,6 @@ def MoG(K, data, LEARNINGRATE, epochs, valid_start):
 
 	return loss_array, valid_loss, clus_assign, mu_, var_, pi_var_
 
-def negFALL(X, mu, psi, W):
-	Psi = tf.diag(psi)
-	Psi_inv = tf.diag(1.0/psi)
-	Sigma = Psi + tf.matmul(W, W, True, False)
-	half_log_det = tf.reduce_sum(tf.log(tf.diag_part(tf.cholesky(Sigma))))
-
-	diff = X-mu
-	inv = tf.matrix_inverse(Sigma)
-	inv_times_diff = tf.matmul(inv, diff, False, True)
-	half_exponent = 0.5 * tf.reduce_sum(tf.matmul(diff, inv_times_diff))
-	return half_log_det + half_exponent
-
-def factorAnalysis (K, data, LEARNINGRATE, epochs):
-	train_data = data['x']
-	train_target = data['y']
-	valid_data = data['x_valid']
-	valid_target = data['y_valid']
-
-	B = train_data.shape[0]
-	D = train_data.shape[1]
-
-	X = tf.placeholder("float32",shape=[None,D])
-	mu = tf.Variable(tf.random_normal([D],stddev=0.25))
-	psi = tf.exp(tf.Variable(tf.random_normal([D],mean=0,stddev=0.25)))
-	W = tf.exp(tf.Variable(tf.random_normal([K, D],mean=0,stddev=0.25)))
-
-	L = negFALL(X, mu, psi, W)
-
-	adam_op = tf.train.AdamOptimizer(LEARNINGRATE, beta1=0.9, beta2=0.99, epsilon=1e-5).minimize(L)
-
-	init = tf.global_variables_initializer()
-
-	loss_array = np.zeros(epochs)
-
-	with tf.Session() as sess:
-		sess.run(init)
-
-		for epoch in range(epochs):
-			loss, _ = sess.run([L,adam_op],feed_dict={X:train_data})
-			loss_array[epoch] = loss
-
-		W_ = sess.run(W)
-		valid_loss = sess.run(L,feed_dict={X:valid_data})
-		print "Valid Loss: ", valid_loss
-	
-	return loss_array, valid_loss, W_
-
-
 K = 3
 epochs = 600
 valid_start = len(data)
@@ -392,6 +344,93 @@ LEARNINGRATE = 0.005
 # 
 #############################################################################
 
+#############################################################################
+#
+# Part 3.1.2 ################################################################
+#
+
+def negFALL(X, mu, psi, W, N):
+	Psi = tf.diag(psi)
+	Psi_inv = tf.diag(1.0/psi)
+	Sigma = Psi + tf.matmul(W, W, True, False)
+	# print X.get_shape()[0]
+	log_det = N*2.0*tf.reduce_sum(tf.log(tf.diag_part(tf.cholesky(Sigma))))
+
+	diff = X-mu
+	inv = tf.matrix_inverse(Sigma)
+	inv_times_diff = tf.matmul(inv, diff, False, True)
+	A = tf.matmul(diff, inv_times_diff)
+	exponent = tf.reduce_sum(A)
+	return log_det + exponent
+
+def factorAnalysis (K, data, LEARNINGRATE, epochs):
+	train_data = data['x']
+	train_target = data['y']
+	valid_data = data['x_valid']
+	valid_target = data['y_valid']
+
+	B = train_data.shape[0]
+	D = train_data.shape[1]
+
+	X = tf.placeholder("float32",shape=[None,D])
+	mu = tf.Variable(tf.random_normal([D],stddev=0.25))
+	psi = tf.exp(tf.Variable(tf.random_normal([D],mean=0,stddev=0.25)))
+	W = tf.exp(tf.Variable(tf.random_normal([K, D],mean=0,stddev=0.25)))
+
+	L = negFALL(X, mu, psi, W, B)
+
+	adam_op = tf.train.AdamOptimizer(LEARNINGRATE, beta1=0.9, beta2=0.99, epsilon=1e-5).minimize(L)
+
+	init = tf.global_variables_initializer()
+
+	loss_array = np.zeros(epochs)
+
+	with tf.Session() as sess:
+		sess.run(init)
+
+		for epoch in range(epochs):
+			loss, _ = sess.run([L,adam_op],feed_dict={X:train_data})
+			loss_array[epoch] = loss
+			# print loss
+
+		W_ = sess.run(W)
+		valid_loss = sess.run(L,feed_dict={X:valid_data})
+		print "Valid Loss: ", valid_loss
+	
+	return loss_array, valid_loss, W_
+
+def factorAnalysis2 (K, data, LEARNINGRATE, epochs):
+
+	B = data.shape[0]
+	D = data.shape[1]
+
+	X = tf.placeholder("float32",shape=[None,D])
+	mu = tf.Variable(tf.random_normal([D],stddev=0.25))
+	psi = tf.exp(tf.Variable(tf.random_normal([D],mean=0,stddev=0.25)))
+	W = tf.exp(tf.Variable(tf.random_normal([K, D],mean=0,stddev=0.25)))
+
+	L = negFALL(X, mu, psi, W, B)
+
+	adam_op = tf.train.AdamOptimizer(LEARNINGRATE, beta1=0.9, beta2=0.99, epsilon=1e-5).minimize(L)
+
+	init = tf.global_variables_initializer()
+
+	loss_array = np.zeros(epochs)
+
+	with tf.Session() as sess:
+		sess.run(init)
+
+		for epoch in range(epochs):
+			loss, _ = sess.run([L,adam_op],feed_dict={X:data})
+			loss_array[epoch] = loss
+
+		W_ = sess.run(W)
+		valid_loss = sess.run(L,feed_dict={X:data})
+		print "Valid Loss: ", valid_loss
+	
+	return loss_array, valid_loss, W_
+
+
 K = 4
 
 tinymnist = np.load ("tinymnist.npz")
@@ -400,7 +439,7 @@ tinymnist = np.load ("tinymnist.npz")
 #	testData, testTarget = data ["x_test"], data ["y_test"]
 
 # def factorAnalysis (K, data, LEARNINGRATE, epochs):
-loss_array, valid_loss, W = factorAnalysis(K, tinymnist, LEARNINGRATE, 800)
+loss_array, valid_loss, W = factorAnalysis(K, tinymnist, LEARNINGRATE, 1500)
 # print W # W is 4 x 64
 W = np.reshape(W, (K, 8, 8))
 # print W
@@ -413,3 +452,36 @@ for i in range(K):
 	plt.ylabel('')
 	plt.show()
 
+
+#############################################################################
+#
+# Part 3.1.3 ################################################################
+#
+# 
+
+K = 1
+
+mean = np.zeros(3)
+cov = np.eye(3)
+
+s = np.random.multivariate_normal(mean, cov, 200).T
+x = np.zeros((3,200))
+
+x[0] = s[0]
+x[1] = s[0] + 0.001*s[1]
+x[2] = 10*s[2]
+
+# def factorAnalysis (K, data, LEARNINGRATE, epochs):
+#	return loss_array, valid_loss, W_
+# 
+
+loss_array, valid_loss, W = factorAnalysis2 (K, x.T, LEARNINGRATE, 1000)
+
+# print W
+
+plt.figure()
+plt.imshow(W)
+plt.title('Visualization of FA')
+plt.xlabel('')
+plt.ylabel('')
+plt.show()
